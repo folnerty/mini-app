@@ -30,12 +30,18 @@ function App() {
     const initializeVK = async () => {
       try {
         console.log('Initializing VK Bridge...');
-        await initVK();
+        
+        // Инициализируем VK Bridge только в VK окружении
+        if (isVKEnvironment()) {
+          await initVK();
+          console.log('VK Bridge initialized successfully');
+        } else {
+          console.log('Not in VK environment, skipping VK Bridge initialization');
+        }
         
         console.log('Getting VK user info...');
         const user = await getVKUserWithFallback();
         setVkUser(user);
-        setIsVkInitialized(true);
         
         console.log('VK User loaded:', user);
         
@@ -47,18 +53,21 @@ function App() {
         updateLeaderboard(userStats, user);
         setLeaderboard(loadLeaderboard());
         
+        setIsVkInitialized(true);
       } catch (error) {
         console.error('VK initialization failed:', error);
         
-        // Даже при ошибке инициализации создаем пользователя по умолчанию
-        const defaultUser: VKUser = {
-          id: Date.now(),
-          first_name: 'Пользователь',
-          last_name: 'VK',
-          photo_100: '👤'
-        };
+        // При ошибке используем безопасную функцию получения пользователя
+        const defaultUser = await getVKUserSafe();
         
         setVkUser(defaultUser);
+        
+        // Загружаем статистику и обновляем рейтинг даже при ошибке
+        const userStats = loadUserStats();
+        setUserStats(userStats);
+        updateLeaderboard(userStats, defaultUser);
+        setLeaderboard(loadLeaderboard());
+        
         setIsVkInitialized(true);
       }
     };
