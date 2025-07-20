@@ -57,8 +57,8 @@ function App() {
       } catch (error) {
         console.error('VK initialization failed:', error);
         
-        // При ошибке используем безопасную функцию получения пользователя
-        const defaultUser = await getVKUserSafe();
+        // При ошибке используем функцию получения пользователя с fallback
+        const defaultUser = await getVKUserWithFallback();
         
         setVkUser(defaultUser);
         
