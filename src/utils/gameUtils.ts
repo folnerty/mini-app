@@ -169,10 +169,10 @@ export const loadLeaderboard = (): LeaderboardEntry[] => {
   return [];
 };
 
-export const updateLeaderboard = (stats: UserStats, vkUser: VKUser | null = null): void => {
+export const updateLeaderboard = (stats: UserStats, vkUser?: VKUser): void => {
   const leaderboard = loadLeaderboard();
   
-  const userId = vkUser ? generateUserKey(vkUser.id) : 'anonymous_user';
+  const userId = vkUser ? generateUserKey(vkUser.id) : `anonymous_${Date.now()}`;
   const userName = vkUser ? getUserDisplayName(vkUser) : 'Анонимный пользователь';
   const userAvatar = vkUser ? getUserAvatar(vkUser) : '👤';
   
@@ -199,10 +199,11 @@ export const updateLeaderboard = (stats: UserStats, vkUser: VKUser | null = null
 export const getCurrentUserRank = (leaderboard: LeaderboardEntry[], vkUser: VKUser | null): number => {
   if (!vkUser) return 0;
   const userId = generateUserKey(vkUser.id);
-  return leaderboard.findIndex(entry => entry.id === userId) + 1;
+  const rank = leaderboard.findIndex(entry => entry.id === userId) + 1;
+  return rank > 0 ? rank : 0;
 };
 
 export const isCurrentUser = (entry: LeaderboardEntry, vkUser: VKUser | null): boolean => {
-  if (!vkUser) return false;
+  if (!vkUser) return entry.id.startsWith('anonymous_');
   return entry.id === generateUserKey(vkUser.id);
 };

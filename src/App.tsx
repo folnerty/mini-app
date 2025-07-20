@@ -6,7 +6,7 @@ import UserStats from './components/UserStats';
 import Leaderboard from './components/Leaderboard';
 import { UserStats as UserStatsType, Question } from './types/quiz';
 import { loadUserStats, updateUserStats, loadLeaderboard, updateLeaderboard } from './utils/gameUtils';
-import { VKUser, initVK, getVKUser } from './utils/vkUtils';
+import { VKUser, initVK, getVKUserWithFallback, isVKEnvironment } from './utils/vkUtils';
 
 type AppState = 'home' | 'quiz' | 'results' | 'stats' | 'leaderboard';
 
@@ -29,17 +29,37 @@ function App() {
     
     const initializeVK = async () => {
       try {
+        console.log('Initializing VK Bridge...');
         await initVK();
-        const user = await getVKUser();
+        
+        console.log('Getting VK user info...');
+        const user = await getVKUserWithFallback();
         setVkUser(user);
         setIsVkInitialized(true);
         
-        if (user) {
-          console.log('VK User loaded:', user);
-        }
+        console.log('VK User loaded:', user);
+        
+        // Загружаем статистику пользователя
+        const userStats = loadUserStats();
+        setUserStats(userStats);
+        
+        // Обновляем рейтинг с данными пользователя
+        updateLeaderboard(userStats, user);
+        setLeaderboard(loadLeaderboard());
+        
       } catch (error) {
         console.error('VK initialization failed:', error);
-        setIsVkInitialized(true); 
+        
+        // Даже при ошибке инициализации создаем пользователя по умолчанию
+        const defaultUser: VKUser = {
+          id: Date.now(),
+          first_name: 'Пользователь',
+          last_name: 'VK',
+          photo_100: '👤'
+        };
+        
+        setVkUser(defaultUser);
+        setIsVkInitialized(true);
       }
     };
     
@@ -64,7 +84,7 @@ function App() {
     const newStats = updateUserStats(correctAnswers, totalQuestions, score, categories, gameQuestions, answers, timesSpent);
     setUserStats(newStats);
 
-    updateLeaderboard(newStats, vkUser);
+    updateLeaderboard(newStats, vkUser || undefined);
     setLeaderboard(loadLeaderboard());
 
     setCurrentState('results');
