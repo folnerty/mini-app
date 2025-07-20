@@ -1,10 +1,13 @@
-﻿import React from 'react';
+import React from 'react';
 import { Play, BarChart3, Trophy, Brain, Zap, Target, Users, Award } from 'lucide-react';
 import { UserStats, LeaderboardEntry } from '../types/quiz';
+import { VKUser } from '../utils/vkUtils';
+import { getCurrentUserRank } from '../utils/gameUtils';
 
 interface HomePageProps {
     userStats: UserStats;
     leaderboard: LeaderboardEntry[];
+    vkUser: VKUser | null;
     onStartQuiz: () => void;
     onViewStats: () => void;
     onViewLeaderboard: () => void;
@@ -21,11 +24,11 @@ const HomePage: React.FC<HomePageProps> = ({
     const gamesPlayed = Math.floor(userStats.totalQuestions / 10);
     const accuracy = userStats.totalQuestions > 0 ? Math.round((userStats.correctAnswers / userStats.totalQuestions) * 100) : 0;
 
-    const userRank = leaderboard.findIndex(entry => entry.id === 'current-user') + 1;
+    const userRank = getCurrentUserRank(leaderboard, vkUser);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-            {}
+            {/* Header */}
             <div className="bg-white shadow-sm">
                 <div className="max-w-2xl mx-auto px-4 py-6">
                     <div className="flex items-center justify-between">
@@ -35,7 +38,9 @@ const HomePage: React.FC<HomePageProps> = ({
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-800">Научный Квиз</h1>
-                                <p className="text-gray-600">Проверьте свои знания!</p>
+                                <p className="text-gray-600">
+                                    {vkUser ? `Привет, ${vkUser.first_name}!` : 'Проверьте свои знания!'}
+                                </p>
                             </div>
                         </div>
 
@@ -55,7 +60,7 @@ const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             <div className="max-w-2xl mx-auto p-4 pt-6">
-                {}
+                {/* Main Game Button */}
                 <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 text-center">
                     <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Play className="w-10 h-10 text-white" />
@@ -91,7 +96,7 @@ const HomePage: React.FC<HomePageProps> = ({
                     </div>
                 </div>
 
-                {}
+                {/* Stats Cards */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         <div className="flex items-center justify-between mb-2">
@@ -112,7 +117,7 @@ const HomePage: React.FC<HomePageProps> = ({
                     </div>
                 </div>
 
-                {}
+                {/* Navigation Cards */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                     <button
                         onClick={onViewStats}
@@ -135,7 +140,7 @@ const HomePage: React.FC<HomePageProps> = ({
                     </button>
                 </div>
 
-                {}
+                {/* Achievements */}
                 {userStats.achievements.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
@@ -156,7 +161,7 @@ const HomePage: React.FC<HomePageProps> = ({
                     </div>
                 )}
 
-                {}
+                {/* Welcome Message for New Users */}
                 {gamesPlayed === 0 && (
                     <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-2xl p-6 mt-6 border border-blue-200">
                         <div className="text-center">
