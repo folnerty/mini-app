@@ -30,27 +30,20 @@ const HomePage: React.FC<HomePageProps> = ({
     // Периодически обновляем рейтинг только для VK пользователей
     React.useEffect(() => {
         const updateLeaderboard = async () => {
-            // Обновляем рейтинг только для VK пользователей
-            if (isVKEnvironment()) {
-                try {
-                    const freshGlobalLeaderboard = await loadSharedLeaderboard();
-                    console.log('Fresh GLOBAL leaderboard loaded for VK user:', freshGlobalLeaderboard.length, 'entries');
-                } catch (error) {
-                    console.error('Error refreshing GLOBAL leaderboard:', error);
-                }
+            try {
+                const freshGlobalLeaderboard = await loadSharedLeaderboard();
+                console.log('Fresh GLOBAL leaderboard loaded:', freshGlobalLeaderboard.length, 'entries');
+                // Здесь можно добавить обновление состояния, если нужно
+            } catch (error) {
+                console.error('Error refreshing GLOBAL leaderboard:', error);
             }
         };
         
-        // Обновляем ГЛОБАЛЬНЫЙ рейтинг каждые 30 секунд только для VK пользователей
-        let interval: NodeJS.Timeout | null = null;
-        if (isVKEnvironment()) {
-            interval = setInterval(updateLeaderboard, 30000);
-        }
+        // Обновляем ГЛОБАЛЬНЫЙ рейтинг каждые 30 секунд
+        const interval = setInterval(updateLeaderboard, 30000);
         
         return () => {
-            if (interval) {
-                clearInterval(interval);
-            }
+            clearInterval(interval);
         };
     }, []);
 

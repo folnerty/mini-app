@@ -70,10 +70,8 @@ function App() {
                     setLeaderboard(updatedLeaderboard);
                 } catch (leaderboardError) {
                     console.error('Failed to load leaderboard:', leaderboardError);
-                    // Для не-VK пользователей используем кешированные данные
-                    if (!isVKEnvironment()) {
-                        setLeaderboard(getCachedLeaderboard());
-                    }
+                    // Используем кешированные данные
+                    setLeaderboard(getCachedLeaderboard());
                 }
 
                 setIsVkInitialized(true);

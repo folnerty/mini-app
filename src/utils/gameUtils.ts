@@ -251,7 +251,9 @@ export const loadSharedLeaderboard = async (): Promise<LeaderboardEntry[]> => {
                 return leaderboard;
             } else {
                 console.log('No GLOBAL leaderboard found in VK Storage, initializing empty');
-                return [];
+                // Если нет данных в VK Storage, попробуем загрузить из кеша
+                const cached = localStorage.getItem('cached_global_leaderboard');
+                return cached ? JSON.parse(cached) : [];
             }
         } else {
             console.log('Not in VK environment, using cached global leaderboard');
@@ -285,51 +287,79 @@ export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser)
         
         const { isVKEnvironment } = await import('./vkUtils');
         
+        // Всегда обновляем локальный кеш
+        let currentLeaderboard: LeaderboardEntry[] = [];
+        const cached = localStorage.getItem('cached_global_leaderboard');
+        if (cached) {
+            currentLeaderboard = JSON.parse(cached);
+        }
+        
+        // Обновляем или добавляем запись пользователя в локальный кеш
+        const existingIndex = currentLeaderboard.findIndex(entry => entry.id === userId);
+        if (existingIndex >= 0) {
+            currentLeaderboard[existingIndex] = userEntry;
+        } else {
+            currentLeaderboard.push(userEntry);
+        }
+        
+        // Сортируем и ограничиваем
+        currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+        const limitedLeaderboard = currentLeaderboard.slice(0, 100);
+        
+        // Сохраняем в локальный кеш
+        localStorage.setItem('cached_global_leaderboard', JSON.stringify(limitedLeaderboard));
+        
         if (isVKEnvironment()) {
             console.log('Updating GLOBAL leaderboard in VK Storage...');
             
-            // Загружаем текущий ГЛОБАЛЬНЫЙ рейтинг
-            let currentLeaderboard: LeaderboardEntry[] = [];
-            
             try {
+                // Загружаем текущий ГЛОБАЛЬНЫЙ рейтинг из VK Storage
+                let vkLeaderboard: LeaderboardEntry[] = [];
+                
                 const result = await vkBridge.send('VKWebAppStorageGet', {
                     keys: [VK_STORAGE_KEYS.GLOBAL_LEADERBOARD]
                 });
                 
                 if (result.keys && result.keys.length > 0 && result.keys[0].value) {
-                    currentLeaderboard = JSON.parse(result.keys[0].value);
+                    vkLeaderboard = JSON.parse(result.keys[0].value);
+                } else {
+                    // Если в VK Storage пусто, используем локальный кеш
+                    vkLeaderboard = [...limitedLeaderboard];
                 }
+                
+                // Обновляем или добавляем запись пользователя в VK рейтинг
+                const vkExistingIndex = vkLeaderboard.findIndex(entry => entry.id === userId);
+                if (vkExistingIndex >= 0) {
+                    vkLeaderboard[vkExistingIndex] = userEntry;
+                } else {
+                    vkLeaderboard.push(userEntry);
+                }
+                
+                // Сортируем и ограничиваем VK рейтинг
+                vkLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+                const limitedVKLeaderboard = vkLeaderboard.slice(0, 100);
+                
+                // Сохраняем в VK Storage
+                await vkBridge.send('VKWebAppStorageSet', {
+                    key: VK_STORAGE_KEYS.GLOBAL_LEADERBOARD,
+                    value: JSON.stringify(limitedVKLeaderboard)
+                });
+                
+                // Обновляем локальный кеш данными из VK
+                localStorage.setItem('cached_global_leaderboard', JSON.stringify(limitedVKLeaderboard));
+                
+                console.log('GLOBAL leaderboard updated in VK Storage:', limitedVKLeaderboard.length, 'entries');
             } catch (loadError) {
                 console.log('Could not load existing GLOBAL leaderboard, starting fresh');
+                
+                // Если не удалось загрузить из VK Storage, сохраняем текущий кеш
+                await vkBridge.send('VKWebAppStorageSet', {
+                    key: VK_STORAGE_KEYS.GLOBAL_LEADERBOARD,
+                    value: JSON.stringify(limitedLeaderboard)
+                });
             }
-            
-            // Обновляем или добавляем запись пользователя в ГЛОБАЛЬНЫЙ рейтинг
-            const existingIndex = currentLeaderboard.findIndex(entry => entry.id === userId);
-            if (existingIndex >= 0) {
-                currentLeaderboard[existingIndex] = userEntry;
-                console.log('Updated existing user in GLOBAL leaderboard:', userId);
-            } else {
-                currentLeaderboard.push(userEntry);
-                console.log('Added new user to GLOBAL leaderboard:', userId);
-            }
-            
-            // Сортируем по очкам и ограничиваем размер до 100 записей
-            currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
-            const limitedLeaderboard = currentLeaderboard.slice(0, 100);
-            
-            // Сохраняем ГЛОБАЛЬНЫЙ рейтинг в VK Storage
-            await vkBridge.send('VKWebAppStorageSet', {
-                key: VK_STORAGE_KEYS.GLOBAL_LEADERBOARD,
-                value: JSON.stringify(limitedLeaderboard)
-            });
-            
-            // Кешируем для не-VK пользователей
-            localStorage.setItem('cached_global_leaderboard', JSON.stringify(limitedLeaderboard));
-            
-            console.log('GLOBAL leaderboard updated in VK Storage:', limitedLeaderboard.length, 'entries');
         } else {
-            console.log('Not in VK environment, cannot update global leaderboard');
-            // Не-VK пользователи не могут обновлять глобальный рейтинг
+            console.log('Not in VK environment, updated local leaderboard cache');
         }
         
     } catch (error) {
