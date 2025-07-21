@@ -10,31 +10,45 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
 
-    <meta property="vk:app_id" content="51825863" />
+    <meta property="vk:app_id" content="53937731" />
     <meta property="vk:platform" content="web" />
     <meta property="vk:iframe" content="1" />
-    <meta property="vk:api_version" content="5.199" />
+    <meta property="vk:api_version" content="5.131" />
 
     <!-- VK Bridge должен загружаться первым -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" crossorigin="anonymous"></script>
     
     <!-- Инициализация VK Bridge сразу после загрузки -->
     <script>
-        // Инициализация для мобильного приложения ВК
-        try {
+        // Ждем полной загрузки VK Bridge
+        function initVKBridge() {
             if (window.vkBridge) {
-                window.vkBridge.send('VKWebAppInit');
-                // Дополнительные настройки для мобильного приложения
-                window.vkBridge.send('VKWebAppSetViewSettings', {
-                    status_bar_style: 'light',
-                    action_bar_color: '#5181b8'
-                }).catch(function(error) {
-                    console.log('VKWebAppSetViewSettings not supported:', error);
-                });
+                console.log('VK Bridge found, initializing...');
+                window.vkBridge.send('VKWebAppInit')
+                    .then(function() {
+                        console.log('VK Bridge initialized successfully');
+                        // Сигнализируем о готовности приложения
+                        return window.vkBridge.send('VKWebAppViewRestore');
+                    })
+                    .then(function() {
+                        console.log('VK App view restored');
+                    })
+                    .catch(function(error) {
+                        console.log('VK Bridge init error:', error);
+                    });
+            } else {
+                console.log('VK Bridge not found, retrying...');
+                setTimeout(initVKBridge, 100);
             }
-        } catch (error) {
-            console.log('VK Bridge initialization error:', error);
+        }
+        
+        // Инициализируем сразу или ждем загрузки
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initVKBridge);
+        } else {
+            initVKBridge();
         }
     </script>
 

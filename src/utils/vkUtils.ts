@@ -81,35 +81,49 @@ export const getVKUser = async (): Promise<VKUser | null> => {
 export const isVKEnvironment = (): boolean => {
     if (typeof window === 'undefined') return false;
     
-    // Проверяем мобильное приложение ВК
+    // Проверяем различные способы определения VK окружения
     const userAgent = navigator.userAgent || '';
-    const isVKMobileApp = userAgent.includes('VKApp') || 
-                         userAgent.includes('VK/') ||
-                         userAgent.includes('VKAndroidApp') ||
-                         userAgent.includes('VKiOSApp');
+    
+    // Мобильное приложение ВК
+    const isVKMobileApp = /VKApp|VK\/|VKAndroidApp|VKiOSApp|vk_platform=mobile_android|vk_platform=mobile_iphone/i.test(userAgent);
     
     if (isVKMobileApp) {
         console.log('Detected VK Mobile App');
         return true;
     }
     
-    // Проверяем веб-версию ВК
+    // Веб-версия ВК
     const hostname = window.location.hostname;
-    const isVKDomain = hostname.includes('vk.com') || 
-                      hostname.includes('vk-apps.com') || 
-                      hostname.includes('vk.me') ||
-                      hostname.includes('userapi.com');
+    const isVKDomain = /vk\.com|vk-apps\.com|vk\.me|userapi\.com|vk-cdn\.net/i.test(hostname);
     
-    // Проверяем наличие VK Bridge
+    // Наличие VK Bridge
     const hasVKBridge = typeof window.vkBridge !== 'undefined';
     
-    // Проверяем параметры URL
+    // Параметры URL от ВК
     const urlParams = new URLSearchParams(window.location.search);
     const hasVKParams = urlParams.has('vk_app_id') || 
                        urlParams.has('vk_user_id') ||
-                       urlParams.has('sign');
+                       urlParams.has('sign') ||
+                       urlParams.has('vk_platform');
     
-    return isVKDomain || hasVKBridge || hasVKParams;
+    // Проверяем referrer
+    const referrer = document.referrer || '';
+    const isVKReferrer = /vk\.com|vk-apps\.com/i.test(referrer);
+    
+    const result = isVKDomain || hasVKBridge || hasVKParams || isVKReferrer;
+    console.log('VK Environment check:', {
+        isVKMobileApp,
+        isVKDomain,
+        hasVKBridge,
+        hasVKParams,
+        isVKReferrer,
+        result,
+        userAgent,
+        hostname,
+        referrer
+    });
+    
+    return result;
 };
 
 export const isLocalhostEnvironment = (): boolean => {

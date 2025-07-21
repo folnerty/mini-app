@@ -5,7 +5,7 @@ import QuizResults from './components/QuizResults';
 import UserStats from './components/UserStats';
 import Leaderboard from './components/Leaderboard';
 import { UserStats as UserStatsType, Question } from './types/quiz';
-import { loadUserStats, updateUserStats, loadLeaderboard, updateLeaderboard, loadFromVKStorage } from './utils/gameUtils';
+import { loadUserStats, updateUserStats, loadSharedLeaderboard, updateSharedLeaderboard, initSharedLeaderboard } from './utils/gameUtils';
 import { VKUser, initVK, getVKUserWithFallback, isVKEnvironment } from './utils/vkUtils';
 import vkBridge from '@vkontakte/vk-bridge';
 type AppState = 'home' | 'quiz' | 'results' | 'stats' | 'leaderboard';
@@ -14,7 +14,7 @@ type AppState = 'home' | 'quiz' | 'results' | 'stats' | 'leaderboard';
 function App() {
     const [currentState, setCurrentState] = useState<AppState>('home');
     const [userStats, setUserStats] = useState<UserStatsType>(loadUserStats());
-    const [leaderboard, setLeaderboard] = useState(loadLeaderboard());
+    const [leaderboard, setLeaderboard] = useState(loadSharedLeaderboard());
     const [vkUser, setVkUser] = useState<VKUser | null>(null);
     const [isVkInitialized, setIsVkInitialized] = useState(false);
     const [gameResults, setGameResults] = useState<{
@@ -45,13 +45,12 @@ function App() {
                 const userStats = loadUserStats();
                 setUserStats(userStats);
 
-                // Загружаем общий рейтинг из облачного хранилища ВК
-                const cloudLeaderboard = await loadFromVKStorage();
-                setLeaderboard(cloudLeaderboard);
+                // Инициализируем общий рейтинг
+                initSharedLeaderboard();
                 
-                // Обновляем рейтинг текущим пользователем
-                updateLeaderboard(userStats, user);
-                setLeaderboard(loadLeaderboard());
+                // Обновляем общий рейтинг текущим пользователем
+                updateSharedLeaderboard(userStats, user);
+                setLeaderboard(loadSharedLeaderboard());
 
                 setIsVkInitialized(true);
             } catch (error) {
@@ -64,15 +63,11 @@ function App() {
                 const userStats = loadUserStats();
                 setUserStats(userStats);
                 
-                // Пытаемся загрузить общий рейтинг
-                try {
-                    const cloudLeaderboard = await loadFromVKStorage();
-                    setLeaderboard(cloudLeaderboard);
-                } catch {
-                    setLeaderboard(loadLeaderboard());
-                }
+                // Инициализируем общий рейтинг
+                initSharedLeaderboard();
                 
-                updateLeaderboard(userStats, defaultUser);
+                updateSharedLeaderboard(userStats, defaultUser);
+                setLeaderboard(loadSharedLeaderboard());
 
                 setIsVkInitialized(true);
             }
@@ -116,8 +111,8 @@ function App() {
         const newStats = updateUserStats(correctAnswers, totalQuestions, score, categories, gameQuestions, answers, timesSpent);
         setUserStats(newStats);
 
-        updateLeaderboard(newStats, vkUser || undefined);
-        setLeaderboard(loadLeaderboard());
+        updateSharedLeaderboard(newStats, vkUser || undefined);
+        setLeaderboard(loadSharedLeaderboard());
 
         setCurrentState('results');
     };
