@@ -439,14 +439,64 @@ export const loadSharedLeaderboard = (): LeaderboardEntry[] => {
     return [];
 };
 
+export const loadFromVKStorageOld = async (): Promise<LeaderboardEntry[]> => {
+    try {
+        const { isVKEnvironment } = await import('./vkUtils');
+        if (isVKEnvironment()) {
+            const bridge = (await import('@vkontakte/vk-bridge')).default;
+            
+            const result = await bridge.send('VKWebAppStorageGet', {
+                keys: ['global_leaderboard']
+            });
+            
+            if (result.keys && result.keys.length > 0 && result.keys[0].value) {
+                const cloudLeaderboard = JSON.parse(result.keys[0].value);
+                
+                // Объединяем локальный и облачный рейтинги
+                const localLeaderboard = loadLeaderboard();
+                const mergedLeaderboard = mergeLeaderboards(localLeaderboard, cloudLeaderboard);
+                
+                // Сохраняем объединенный рейтинг локально
+                localStorage.setItem('global_leaderboard', JSON.stringify(mergedLeaderboard));
+                
+                return mergedLeaderboard;
+            }
+        }
+    } catch (error) {
+        console.log('Failed to load from VK Storage:', error);
+    }
+    
+    return loadLeaderboard();
+};
+
+// Функция для объединения рейтингов
+const mergeLeaderboards = (local: LeaderboardEntry[], cloud: LeaderboardEntry[]): LeaderboardEntry[] => {
+    const merged = new Map<string, LeaderboardEntry>();
+    
+    // Добавляем локальные записи
+    local.forEach(entry => {
+        merged.set(entry.id, entry);
+    });
+    
+    // Добавляем/обновляем облачными записями (приоритет у более свежих данных)
+    cloud.forEach(entry => {
+        const existing = merged.get(entry.id);
+        if (!existing || entry.totalPoints > existing.totalPoints) {
+            merged.set(entry.id, entry);
+        }
+    });
+    
+    return Array.from(merged.values()).sort((a, b) => b.totalPoints - a.totalPoints);
+};
+
 export const getCurrentUserRank = (leaderboard: LeaderboardEntry[], vkUser: VKUser | null): number => {
     if (!vkUser) return 0;
-    const userId = `vk_${vkUser.id}`;
+    const userId = generateUserKey(vkUser.id);
     const rank = leaderboard.findIndex(entry => entry.id === userId) + 1;
     return rank > 0 ? rank : 0;
 };
 
 export const isCurrentUser = (entry: LeaderboardEntry, vkUser: VKUser | null): boolean => {
-    if (!vkUser) return entry.id.startsWith('guest_');
-    return entry.id === `vk_${vkUser.id}`;
+    if (!vkUser) return entry.id.startsWith('anonymous_');
+    return entry.id === generateUserKey(vkUser.id);
 };
