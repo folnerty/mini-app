@@ -5,7 +5,7 @@ import QuizResults from './components/QuizResults';
 import UserStats from './components/UserStats';
 import Leaderboard from './components/Leaderboard';
 import { UserStats as UserStatsType, Question } from './types/quiz';
-import { loadUserStats, updateUserStats, loadLeaderboard, updateLeaderboard } from './utils/gameUtils';
+import { loadUserStats, updateUserStats, loadLeaderboard, updateLeaderboard, loadFromVKStorage } from './utils/gameUtils';
 import { VKUser, initVK, getVKUserWithFallback, isVKEnvironment } from './utils/vkUtils';
 import vkBridge from '@vkontakte/vk-bridge';
 type AppState = 'home' | 'quiz' | 'results' | 'stats' | 'leaderboard';
@@ -45,6 +45,11 @@ function App() {
                 const userStats = loadUserStats();
                 setUserStats(userStats);
 
+                // Загружаем общий рейтинг из облачного хранилища ВК
+                const cloudLeaderboard = await loadFromVKStorage();
+                setLeaderboard(cloudLeaderboard);
+                
+                // Обновляем рейтинг текущим пользователем
                 updateLeaderboard(userStats, user);
                 setLeaderboard(loadLeaderboard());
 
@@ -58,8 +63,16 @@ function App() {
 
                 const userStats = loadUserStats();
                 setUserStats(userStats);
+                
+                // Пытаемся загрузить общий рейтинг
+                try {
+                    const cloudLeaderboard = await loadFromVKStorage();
+                    setLeaderboard(cloudLeaderboard);
+                } catch {
+                    setLeaderboard(loadLeaderboard());
+                }
+                
                 updateLeaderboard(userStats, defaultUser);
-                setLeaderboard(loadLeaderboard());
 
                 setIsVkInitialized(true);
             }

@@ -20,10 +20,20 @@ export const initVK = async (): Promise<void> => {
         try {
             await bridge.send('VKWebAppSetViewSettings', {
                 status_bar_style: 'light',
-                action_bar_color: '#3B82F6'
+                action_bar_color: '#5181b8'
             });
         } catch (e) {
             console.log('VKWebAppSetViewSettings not supported');
+        }
+        
+        // Дополнительные настройки для мобильного приложения
+        try {
+            await bridge.send('VKWebAppAllowMessagesFromGroup', {
+                group_id: 0,
+                key: ''
+            });
+        } catch (e) {
+            console.log('VKWebAppAllowMessagesFromGroup not supported');
         }
         
             console.log('VK Bridge initialized successfully');
@@ -71,7 +81,19 @@ export const getVKUser = async (): Promise<VKUser | null> => {
 export const isVKEnvironment = (): boolean => {
     if (typeof window === 'undefined') return false;
     
-    // Проверяем различные способы определения VK окружения
+    // Проверяем мобильное приложение ВК
+    const userAgent = navigator.userAgent || '';
+    const isVKMobileApp = userAgent.includes('VKApp') || 
+                         userAgent.includes('VK/') ||
+                         userAgent.includes('VKAndroidApp') ||
+                         userAgent.includes('VKiOSApp');
+    
+    if (isVKMobileApp) {
+        console.log('Detected VK Mobile App');
+        return true;
+    }
+    
+    // Проверяем веб-версию ВК
     const hostname = window.location.hostname;
     const isVKDomain = hostname.includes('vk.com') || 
                       hostname.includes('vk-apps.com') || 
@@ -87,11 +109,7 @@ export const isVKEnvironment = (): boolean => {
                        urlParams.has('vk_user_id') ||
                        urlParams.has('sign');
     
-    // Проверяем user agent
-    const userAgent = navigator.userAgent || '';
-    const isVKApp = userAgent.includes('VKApp') || userAgent.includes('VK/');
-    
-    return isVKDomain || hasVKBridge || hasVKParams || isVKApp;
+    return isVKDomain || hasVKBridge || hasVKParams;
 };
 
 export const isLocalhostEnvironment = (): boolean => {

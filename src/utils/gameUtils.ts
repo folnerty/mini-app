@@ -150,7 +150,8 @@ export const checkAchievements = (stats: UserStats): string[] => {
 };
 
 export const loadLeaderboard = (): LeaderboardEntry[] => {
-    const saved = localStorage.getItem('leaderboard');
+    // Используем общий ключ для всех пользователей
+    const saved = localStorage.getItem('global_leaderboard');
     if (saved) {
         return JSON.parse(saved);
     }
@@ -159,6 +160,7 @@ export const loadLeaderboard = (): LeaderboardEntry[] => {
 };
 
 export const updateLeaderboard = (stats: UserStats, vkUser?: VKUser): void => {
+    // Загружаем общий рейтинг
     const leaderboard = loadLeaderboard();
 
     const userId = vkUser ? generateUserKey(vkUser.id) : `anonymous_${Date.now()}`;
@@ -182,7 +184,81 @@ export const updateLeaderboard = (stats: UserStats, vkUser?: VKUser): void => {
     }
 
     leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
-    localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+    
+    // Сохраняем в общий рейтинг
+    localStorage.setItem('global_leaderboard', JSON.stringify(leaderboard));
+    
+    // Также сохраняем в облачное хранилище ВК (если доступно)
+    if (vkUser) {
+        saveToVKStorage(leaderboard);
+    }
+};
+
+// Функция для сохранения в облачное хранилище ВК
+const saveToVKStorage = async (leaderboard: LeaderboardEntry[]): Promise<void> => {
+    try {
+        const { isVKEnvironment } = await import('./vkUtils');
+        if (isVKEnvironment()) {
+            const bridge = (await import('@vkontakte/vk-bridge')).default;
+            await bridge.send('VKWebAppStorageSet', {
+                key: 'global_leaderboard',
+                value: JSON.stringify(leaderboard)
+            });
+            console.log('Leaderboard saved to VK Storage');
+        }
+    } catch (error) {
+        console.log('Failed to save to VK Storage:', error);
+    }
+};
+
+// Функция для загрузки из облачного хранилища ВК
+export const loadFromVKStorage = async (): Promise<LeaderboardEntry[]> => {
+    try {
+        const { isVKEnvironment } = await import('./vkUtils');
+        if (isVKEnvironment()) {
+            const bridge = (await import('@vkontakte/vk-bridge')).default;
+            const result = await bridge.send('VKWebAppStorageGet', {
+                keys: ['global_leaderboard']
+            });
+            
+            if (result.keys && result.keys.length > 0 && result.keys[0].value) {
+                const cloudLeaderboard = JSON.parse(result.keys[0].value);
+                
+                // Объединяем локальный и облачный рейтинги
+                const localLeaderboard = loadLeaderboard();
+                const mergedLeaderboard = mergeLeaderboards(localLeaderboard, cloudLeaderboard);
+                
+                // Сохраняем объединенный рейтинг локально
+                localStorage.setItem('global_leaderboard', JSON.stringify(mergedLeaderboard));
+                
+                return mergedLeaderboard;
+            }
+        }
+    } catch (error) {
+        console.log('Failed to load from VK Storage:', error);
+    }
+    
+    return loadLeaderboard();
+};
+
+// Функция для объединения рейтингов
+const mergeLeaderboards = (local: LeaderboardEntry[], cloud: LeaderboardEntry[]): LeaderboardEntry[] => {
+    const merged = new Map<string, LeaderboardEntry>();
+    
+    // Добавляем локальные записи
+    local.forEach(entry => {
+        merged.set(entry.id, entry);
+    });
+    
+    // Добавляем/обновляем облачными записями (приоритет у более свежих данных)
+    cloud.forEach(entry => {
+        const existing = merged.get(entry.id);
+        if (!existing || entry.totalPoints > existing.totalPoints) {
+            merged.set(entry.id, entry);
+        }
+    });
+    
+    return Array.from(merged.values()).sort((a, b) => b.totalPoints - a.totalPoints);
 };
 
 export const getCurrentUserRank = (leaderboard: LeaderboardEntry[], vkUser: VKUser | null): number => {

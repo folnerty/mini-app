@@ -6,20 +6,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="Научный квиз - проверьте свои знания в области физики, химии, биологии и астрономии!" />
     <meta name="keywords" content="квиз, наука, физика, химия, биология, астрономия, игра, знания" />
-    <meta name="theme-color" content="#3B82F6" />
+    <meta name="theme-color" content="#5181b8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
     <meta property="vk:app_id" content="51825863" />
     <meta property="vk:platform" content="web" />
     <meta property="vk:iframe" content="1" />
-    <meta property="vk:api_version" content="5.131" />
+    <meta property="vk:api_version" content="5.199" />
 
     <!-- VK Bridge должен загружаться первым -->
-    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" crossorigin="anonymous"></script>
     
     <!-- Инициализация VK Bridge сразу после загрузки -->
     <script>
-        if (window.vkBridge) {
-            window.vkBridge.send('VKWebAppInit');
+        // Инициализация для мобильного приложения ВК
+        try {
+            if (window.vkBridge) {
+                window.vkBridge.send('VKWebAppInit');
+                // Дополнительные настройки для мобильного приложения
+                window.vkBridge.send('VKWebAppSetViewSettings', {
+                    status_bar_style: 'light',
+                    action_bar_color: '#5181b8'
+                }).catch(function(error) {
+                    console.log('VKWebAppSetViewSettings not supported:', error);
+                });
+            }
+        } catch (error) {
+            console.log('VK Bridge initialization error:', error);
         }
     </script>
 
