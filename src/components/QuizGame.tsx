@@ -25,7 +25,6 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
 
   useEffect(() => {
-    // Сбрасываем время начала вопроса при смене вопроса
     setQuestionStartTime(Date.now());
   }, [gameState.currentQuestionIndex]);
 
@@ -56,7 +55,6 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
   const handleAnswerSelect = (answerIndex: number) => {
     if (showFeedback) return;
     
-    // Записываем время, потраченное на вопрос
     const timeSpent = Math.max(1, 30 - gameState.timeLeft);
     setTimesSpent(prev => [...prev, timeSpent]);
     
@@ -78,7 +76,6 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
     const newTimesSpent = answerIndex === -1 ? [...timesSpent, 30] : timesSpent;
     
     if (gameState.currentQuestionIndex >= gameState.selectedQuestions.length - 1) {
-      // Game over
       const correctCount = newAnswers.reduce((count, answer, index) => {
         return count + (answer === gameState.selectedQuestions[index].correctAnswer ? 1 : 0);
       }, 0);
@@ -107,7 +104,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
@@ -132,7 +129,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
             </div>
           </div>
           
-          {/* Progress Bar */}
+          {}
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
               className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
@@ -141,7 +138,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
           </div>
         </div>
 
-        {/* Question Card */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
           <div className="flex items-center justify-between mb-6">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(currentQuestion.category)}`}>
@@ -198,7 +195,7 @@ const QuizGame: React.FC<QuizGameProps> = ({ onGameEnd }) => {
             })}
           </div>
           
-          {/* Feedback */}
+          {}
           {showFeedback && (
             <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
               <div className="flex items-start space-x-3">

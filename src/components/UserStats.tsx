@@ -23,12 +23,12 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
   };
 
   const categoryEntries = Object.entries(stats.categoriesStats);
-  const recentHistory = stats.questionHistory.slice(-10).reverse(); // Последние 10 вопросов
+  const recentHistory = stats.questionHistory.slice(-10).reverse(); 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <button
@@ -49,7 +49,7 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
           </p>
         </div>
 
-        {/* Main Stats */}
+        {}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-3">
@@ -88,7 +88,7 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
           </div>
         </div>
 
-        {/* Question Progress */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <Target className="w-6 h-6 mr-2 text-green-600" />
@@ -110,7 +110,7 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
           <p className="text-sm text-gray-600 text-center">{answeredPercentage}% от всех вопросов</p>
         </div>
 
-        {/* Achievements */}
+        {}
         {stats.achievements.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -132,7 +132,7 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
           </div>
         )}
 
-        {/* Recent Question History */}
+        {}
         {recentHistory.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -192,7 +192,7 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
           </div>
         )}
 
-        {/* Category Stats */}
+        {}
         {categoryEntries.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -231,7 +231,7 @@ const UserStats: React.FC<UserStatsProps> = ({ stats, onBack }) => {
           </div>
         )}
 
-        {/* Empty State */}
+        {}
         {stats.totalQuestions === 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

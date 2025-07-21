@@ -1,7 +1,6 @@
 import { Question } from '../types/quiz';
 
 export const questions: Question[] = [
-  // Физика - 25 вопросов
   {
     id: 1,
     category: 'Физика',
@@ -228,7 +227,6 @@ export const questions: Question[] = [
     difficulty: 'easy'
   },
 
-  // Химия - 25 вопросов
   {
     id: 26,
     category: 'Химия',
@@ -455,7 +453,6 @@ export const questions: Question[] = [
     difficulty: 'medium'
   },
 
-  // Биология - 25 вопросов
   {
     id: 51,
     category: 'Биология',
@@ -682,7 +679,6 @@ export const questions: Question[] = [
     difficulty: 'easy'
   },
 
-  // Астрономия - 25 вопросов
   {
     id: 76,
     category: 'Астрономия',

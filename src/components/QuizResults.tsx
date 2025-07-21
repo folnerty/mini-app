@@ -34,7 +34,6 @@ const QuizResults: React.FC<QuizResultsProps> = ({
 
   const performance = getPerformanceMessage();
 
-  // Calculate category performance
   const categoryStats = questions.reduce((stats, question, index) => {
     const category = question.category;
     if (!stats[category]) {
@@ -50,7 +49,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-2xl mx-auto">
-        {/* Results Header */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 text-center">
           <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Trophy className="w-10 h-10 text-white" />
@@ -94,7 +93,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
           </div>
         </div>
 
-        {/* Category Performance */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <TrendingUp className="w-6 h-6 mr-2 text-blue-600" />
@@ -127,7 +126,7 @@ const QuizResults: React.FC<QuizResultsProps> = ({
           </div>
         </div>
 
-        {/* Detailed Review */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <Award className="w-6 h-6 mr-2 text-green-600" />

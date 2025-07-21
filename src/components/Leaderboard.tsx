@@ -32,7 +32,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, vkUser, onBack }
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <button
@@ -51,11 +51,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, vkUser, onBack }
           <p className="text-gray-600">Топ игроков по общему количеству очков</p>
         </div>
 
-        {/* Top 3 Podium */}
+        {}
         {leaderboard.length >= 3 && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <div className="flex items-end justify-center space-x-4 mb-6">
-              {/* 2nd Place */}
+              {}
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-gray-300 to-gray-400 rounded-full flex items-center justify-center mb-2 mx-auto">
                   <span className="text-2xl">{leaderboard[1].avatar}</span>
@@ -69,7 +69,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, vkUser, onBack }
                 </div>
               </div>
 
-              {/* 1st Place */}
+              {}
               <div className="text-center">
                 <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center mb-2 mx-auto">
                   <span className="text-3xl">{leaderboard[0].avatar}</span>
@@ -84,7 +84,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, vkUser, onBack }
                 </div>
               </div>
 
-              {/* 3rd Place */}
+              {}
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full flex items-center justify-center mb-2 mx-auto">
                   <span className="text-2xl">{leaderboard[2].avatar}</span>
@@ -101,7 +101,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, vkUser, onBack }
           </div>
         )}
 
-        {/* Full Leaderboard */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
             <TrendingUp className="w-6 h-6 mr-2 text-blue-600" />
