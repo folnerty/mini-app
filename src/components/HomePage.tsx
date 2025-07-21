@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Play, BarChart3, Trophy, Brain, Zap, Target, Users, Award } from 'lucide-react';
 import { UserStats, LeaderboardEntry } from '../types/quiz';
 import { VKUser } from '../utils/vkUtils';
-import { getCurrentUserRank } from '../utils/gameUtils';
+import { getCurrentUserRank, loadSharedLeaderboard } from '../utils/gameUtils';
 
 interface HomePageProps {
     userStats: UserStats;
@@ -25,6 +25,24 @@ const HomePage: React.FC<HomePageProps> = ({
     const accuracy = userStats.totalQuestions > 0 ? Math.round((userStats.correctAnswers / userStats.totalQuestions) * 100) : 0;
 
     const userRank = getCurrentUserRank(leaderboard, vkUser);
+    
+    // Периодически обновляем рейтинг
+    React.useEffect(() => {
+        const updateLeaderboard = async () => {
+            try {
+                const freshLeaderboard = await loadSharedLeaderboard();
+                // Здесь можно было бы обновить состояние, но это должно делаться в родительском компоненте
+                console.log('Fresh leaderboard loaded:', freshLeaderboard.length, 'entries');
+            } catch (error) {
+                console.error('Error refreshing leaderboard:', error);
+            }
+        };
+        
+        // Обновляем рейтинг каждые 30 секунд
+        const interval = setInterval(updateLeaderboard, 30000);
+        
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
