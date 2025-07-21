@@ -165,7 +165,7 @@ export const loadSharedLeaderboard = async (): Promise<LeaderboardEntry[]> => {
         if (isVKEnvironment()) {
             console.log('Loading leaderboard from VK Storage...');
             
-            // Загружаем общий рейтинг из VK Storage
+            // Только VK Storage для VK пользователей
             const result = await vkBridge.send('VKWebAppStorageGet', {
                 keys: [VK_STORAGE_KEYS.GLOBAL_LEADERBOARD]
             });
@@ -173,27 +173,30 @@ export const loadSharedLeaderboard = async (): Promise<LeaderboardEntry[]> => {
             if (result.keys && result.keys.length > 0 && result.keys[0].value) {
                 const leaderboard = JSON.parse(result.keys[0].value);
                 console.log('Loaded leaderboard from VK Storage:', leaderboard.length, 'entries');
-                
-                // Кешируем локально для быстрого доступа
-                localStorage.setItem('cached_leaderboard', JSON.stringify(leaderboard));
-                
                 return leaderboard;
             } else {
                 console.log('No leaderboard found in VK Storage, initializing empty');
                 return [];
             }
         } else {
-            console.log('Not in VK environment, using local cache');
-            // В не-VK окружении используем локальный кеш
-            const cached = localStorage.getItem('cached_leaderboard');
+            console.log('Not in VK environment, using localStorage');
+            // Для не-VK пользователей используем localStorage
+            const cached = localStorage.getItem('local_leaderboard');
             return cached ? JSON.parse(cached) : [];
         }
     } catch (error) {
         console.error('Error loading leaderboard from VK Storage:', error);
         
-        // Fallback к локальному кешу
-        const cached = localStorage.getItem('cached_leaderboard');
-        return cached ? JSON.parse(cached) : [];
+        // Fallback в зависимости от окружения
+        const { isVKEnvironment } = await import('./vkUtils');
+        if (isVKEnvironment()) {
+            // Для VK пользователей возвращаем пустой массив при ошибке
+            return [];
+        } else {
+            // Для не-VK пользователей используем localStorage
+            const cached = localStorage.getItem('local_leaderboard');
+            return cached ? JSON.parse(cached) : [];
+        }
     }
 };
 
@@ -218,7 +221,7 @@ export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser)
         if (isVKEnvironment()) {
             console.log('Updating leaderboard in VK Storage...');
             
-            // Загружаем текущий рейтинг
+            // Загружаем текущий рейтинг только из VK Storage
             let currentLeaderboard: LeaderboardEntry[] = [];
             
             try {
@@ -241,31 +244,22 @@ export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser)
                 currentLeaderboard.push(userEntry);
             }
             
-            // Сортируем по очкам и ограничиваем размер
+            // Сортируем по очкам и ограничиваем размер до 100 записей
             currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
             const limitedLeaderboard = currentLeaderboard.slice(0, 100);
             
-            // Сохраняем обновленный рейтинг в VK Storage
+            // Сохраняем только в VK Storage
             await vkBridge.send('VKWebAppStorageSet', {
                 key: VK_STORAGE_KEYS.GLOBAL_LEADERBOARD,
                 value: JSON.stringify(limitedLeaderboard)
             });
             
-            // Также сохраняем индивидуальную запись пользователя
-            await vkBridge.send('VKWebAppStorageSet', {
-                key: `${VK_STORAGE_KEYS.USER_PREFIX}${userId}`,
-                value: JSON.stringify(userEntry)
-            });
-            
-            // Кешируем локально
-            localStorage.setItem('cached_leaderboard', JSON.stringify(limitedLeaderboard));
-            
             console.log('Leaderboard updated in VK Storage:', limitedLeaderboard.length, 'entries');
         } else {
-            console.log('Not in VK environment, updating local cache only');
+            console.log('Not in VK environment, updating localStorage only');
             
-            // В не-VK окружении обновляем только локальный кеш
-            const cached = localStorage.getItem('cached_leaderboard');
+            // В не-VK окружении используем отдельный localStorage
+            const cached = localStorage.getItem('local_leaderboard');
             let currentLeaderboard: LeaderboardEntry[] = cached ? JSON.parse(cached) : [];
             
             const existingIndex = currentLeaderboard.findIndex(entry => entry.id === userId);
@@ -278,47 +272,20 @@ export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser)
             currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
             const limitedLeaderboard = currentLeaderboard.slice(0, 100);
             
-            localStorage.setItem('cached_leaderboard', JSON.stringify(limitedLeaderboard));
+            localStorage.setItem('local_leaderboard', JSON.stringify(limitedLeaderboard));
         }
         
     } catch (error) {
         console.error('Error updating leaderboard:', error);
-        
-        // Fallback к локальному обновлению
-        const userId = vkUser ? `vk_${vkUser.id}` : `guest_${Date.now()}`;
-        const userName = vkUser ? getUserDisplayName(vkUser) : 'Анонимный пользователь';
-        const userAvatar = vkUser ? getUserAvatar(vkUser) : '👤';
-        
-        const userEntry: LeaderboardEntry = {
-            id: userId,
-            name: userName,
-            totalPoints: stats.totalPoints,
-            gamesPlayed: Math.floor(stats.totalQuestions / 10),
-            averageScore: stats.averageScore,
-            avatar: userAvatar
-        };
-        
-        const cached = localStorage.getItem('cached_leaderboard');
-        let currentLeaderboard: LeaderboardEntry[] = cached ? JSON.parse(cached) : [];
-        
-        const existingIndex = currentLeaderboard.findIndex(entry => entry.id === userId);
-        if (existingIndex >= 0) {
-            currentLeaderboard[existingIndex] = userEntry;
-        } else {
-            currentLeaderboard.push(userEntry);
-        }
-        
-        currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
-        const limitedLeaderboard = currentLeaderboard.slice(0, 100);
-        
-        localStorage.setItem('cached_leaderboard', JSON.stringify(limitedLeaderboard));
+        // При ошибке не делаем fallback для VK пользователей
+        throw error;
     }
 };
 
-// Синхронная функция для быстрого доступа к кешированному рейтингу
+// Синхронная функция для быстрого доступа к локальному рейтингу (только для не-VK)
 export const getCachedLeaderboard = (): LeaderboardEntry[] => {
     try {
-        const cached = localStorage.getItem('cached_leaderboard');
+        const cached = localStorage.getItem('local_leaderboard');
         return cached ? JSON.parse(cached) : [];
     } catch (error) {
         console.error('Error loading cached leaderboard:', error);
@@ -326,13 +293,25 @@ export const getCachedLeaderboard = (): LeaderboardEntry[] => {
     }
 };
 
-// Функция для инициализации общего рейтинга
-export const initSharedLeaderboard = async (): Promise<void> => {
+// Функция для принудительного обновления рейтинга после игры
+export const forceUpdateLeaderboardAfterGame = async (stats: UserStats, vkUser?: VKUser): Promise<LeaderboardEntry[]> => {
     try {
-        const leaderboard = await loadSharedLeaderboard();
-        console.log('Shared leaderboard initialized with', leaderboard.length, 'entries');
+        console.log('Force updating leaderboard after game...');
+        
+        // Обновляем рейтинг
+        await updateSharedLeaderboard(stats, vkUser);
+        
+        // Загружаем обновленный рейтинг
+        const updatedLeaderboard = await loadSharedLeaderboard();
+        console.log('Leaderboard force updated after game:', updatedLeaderboard.length, 'entries');
+        
+        return updatedLeaderboard;
     } catch (error) {
-        console.error('Error initializing shared leaderboard:', error);
+        console.error('Error force updating leaderboard after game:', error);
+        
+        // В случае ошибки возвращаем текущий рейтинг
+        const currentLeaderboard = await loadSharedLeaderboard();
+        return currentLeaderboard;
     }
 };
 

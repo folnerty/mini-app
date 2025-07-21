@@ -3,6 +3,7 @@ import { Play, BarChart3, Trophy, Brain, Zap, Target, Users, Award } from 'lucid
 import { UserStats, LeaderboardEntry } from '../types/quiz';
 import { VKUser } from '../utils/vkUtils';
 import { getCurrentUserRank, loadSharedLeaderboard } from '../utils/gameUtils';
+import { isVKEnvironment } from '../utils/vkUtils';
 
 interface HomePageProps {
     userStats: UserStats;
@@ -26,22 +27,31 @@ const HomePage: React.FC<HomePageProps> = ({
 
     const userRank = getCurrentUserRank(leaderboard, vkUser);
     
-    // Периодически обновляем рейтинг
+    // Периодически обновляем рейтинг только для VK пользователей
     React.useEffect(() => {
         const updateLeaderboard = async () => {
-            try {
-                const freshLeaderboard = await loadSharedLeaderboard();
-                // Здесь можно было бы обновить состояние, но это должно делаться в родительском компоненте
-                console.log('Fresh leaderboard loaded:', freshLeaderboard.length, 'entries');
-            } catch (error) {
-                console.error('Error refreshing leaderboard:', error);
+            // Обновляем рейтинг только для VK пользователей
+            if (isVKEnvironment()) {
+                try {
+                    const freshLeaderboard = await loadSharedLeaderboard();
+                    console.log('Fresh leaderboard loaded for VK user:', freshLeaderboard.length, 'entries');
+                } catch (error) {
+                    console.error('Error refreshing VK leaderboard:', error);
+                }
             }
         };
         
-        // Обновляем рейтинг каждые 30 секунд
-        const interval = setInterval(updateLeaderboard, 30000);
+        // Обновляем рейтинг каждые 30 секунд только для VK пользователей
+        let interval: NodeJS.Timeout | null = null;
+        if (isVKEnvironment()) {
+            interval = setInterval(updateLeaderboard, 30000);
+        }
         
-        return () => clearInterval(interval);
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        };
     }, []);
 
     return (
