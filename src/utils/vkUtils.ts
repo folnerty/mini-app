@@ -10,33 +10,56 @@ export interface VKUser {
 
 export const initVK = async (): Promise<void> => {
     try {
-        // Инициализация VK Bridge
-        await bridge.send('VKWebAppInit');
+        // Детекция Android WebView
+        const userAgent = navigator.userAgent || '';
+        const isAndroidWebView = /Android/.test(userAgent) && /wv/.test(userAgent);
+        const isVKAndroid = /VKAndroidApp|vk_platform=mobile_android/i.test(userAgent);
         
-        // Отправляем сигнал о готовности приложения
-        await bridge.send('VKWebAppViewRestore');
+        // Инициализация VK Bridge с параметрами для Android
+        const initParams: any = {};
+        if (isAndroidWebView || isVKAndroid) {
+            initParams.webview = true;
+            console.log('Initializing VK Bridge for Android WebView');
+        }
         
-        // Устанавливаем цвет статус-бара
+        await bridge.send('VKWebAppInit', initParams);
+        
+        // Отправляем сигнал о готовности приложения с параметрами для Android
+        if (isAndroidWebView || isVKAndroid) {
+            await bridge.send('VKWebAppViewRestore', { type: 'webview' });
+        } else {
+            await bridge.send('VKWebAppViewRestore');
+        }
+        
+        // Устанавливаем цвет статус-бара (особенно важно для Android)
         try {
-            await bridge.send('VKWebAppSetViewSettings', {
+            const viewSettings: any = {
                 status_bar_style: 'light',
                 action_bar_color: '#5181b8'
-            });
+            };
+            
+            // Дополнительные настройки для Android
+            if (isAndroidWebView || isVKAndroid) {
+                viewSettings.navigation_bar_color = '#5181b8';
+                viewSettings.webview_type = 'internal';
+            }
+            
+            await bridge.send('VKWebAppSetViewSettings', viewSettings);
         } catch (e) {
             console.log('VKWebAppSetViewSettings not supported');
         }
         
-        // Дополнительные настройки для мобильного приложения
+        // Дополнительные настройки для Android WebView
         try {
-            await bridge.send('VKWebAppAllowMessagesFromGroup', {
-                group_id: 0,
-                key: ''
-            });
+            if (isAndroidWebView || isVKAndroid) {
+                // Разрешаем доступ к устройству для Android
+                await bridge.send('VKWebAppAllowNotifications');
+            }
         } catch (e) {
-            console.log('VKWebAppAllowMessagesFromGroup not supported');
+            console.log('Additional Android settings not supported');
         }
         
-            console.log('VK Bridge initialized successfully');
+        console.log('VK Bridge initialized successfully for', isAndroidWebView || isVKAndroid ? 'Android WebView' : 'web');
     } catch (error) {
         console.error('Failed to initialize VK Bridge:', error);
         throw error;
@@ -84,11 +107,15 @@ export const isVKEnvironment = (): boolean => {
     // Проверяем различные способы определения VK окружения
     const userAgent = navigator.userAgent || '';
     
-    // Мобильное приложение ВК
+    // Мобильное приложение ВК (включая Android WebView)
     const isVKMobileApp = /VKApp|VK\/|VKAndroidApp|VKiOSApp|vk_platform=mobile_android|vk_platform=mobile_iphone/i.test(userAgent);
     
-    if (isVKMobileApp) {
-        console.log('Detected VK Mobile App');
+    // Android WebView в VK
+    const isAndroidWebView = /Android/.test(userAgent) && /wv/.test(userAgent);
+    const isVKAndroid = /VKAndroidApp|vk_platform=mobile_android/i.test(userAgent);
+    
+    if (isVKMobileApp || (isAndroidWebView && isVKAndroid)) {
+        console.log('Detected VK Mobile App or Android WebView');
         return true;
     }
     
@@ -113,6 +140,8 @@ export const isVKEnvironment = (): boolean => {
     const result = isVKDomain || hasVKBridge || hasVKParams || isVKReferrer;
     console.log('VK Environment check:', {
         isVKMobileApp,
+        isAndroidWebView,
+        isVKAndroid,
         isVKDomain,
         hasVKBridge,
         hasVKParams,

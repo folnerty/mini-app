@@ -8,7 +8,11 @@ export default defineConfig({
     host: true,
     port: 5173,
     https: false,
-    cors: true
+    cors: true,
+    headers: {
+      'X-Frame-Options': 'ALLOWALL',
+      'Content-Security-Policy': "frame-ancestors 'self' *.vk.com *.vk.me *.vkontakte.ru"
+    }
   },
   build: {
     outDir: 'build',
@@ -21,11 +25,15 @@ export default defineConfig({
         manualChunks: undefined,
         assetFileNames: 'assets/[name].[hash][extname]',
         chunkFileNames: 'assets/[name].[hash].js',
-        entryFileNames: 'assets/[name].[hash].js'
+        entryFileNames: 'assets/[name].[hash].js',
+        // Оптимизация для Android WebView
+        format: 'es'
       }
     }
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
+    // Включаем VK Bridge в оптимизацию для Android
+    include: ['@vkontakte/vk-bridge']
   },
 });

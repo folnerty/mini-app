@@ -11,10 +11,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
+    
+    <!-- Android WebView поддержка -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="android-app-installable" content="yes" />
 
     <meta property="vk:app_id" content="53937731" />
-    <meta property="vk:platform" content="web" />
-    <meta property="vk:iframe" content="1" />
+    <meta property="vk:platform" content="mobile_web" />
+    <meta property="vk:webview" content="1" />
     <meta property="vk:api_version" content="5.131" />
 
     <!-- VK Bridge должен загружаться первым -->
@@ -22,21 +27,62 @@
     
     <!-- Инициализация VK Bridge сразу после загрузки -->
     <script>
+        // Детекция Android WebView
+        function isAndroidWebView() {
+            const ua = navigator.userAgent;
+            return /Android/.test(ua) && /wv/.test(ua);
+        }
+        
+        // Детекция VK Android App
+        function isVKAndroidApp() {
+            const ua = navigator.userAgent;
+            return /VKAndroidApp|VKApp.*Android|vk_platform=mobile_android/i.test(ua);
+        }
+        
         // Ждем полной загрузки VK Bridge
         function initVKBridge() {
             if (window.vkBridge) {
                 console.log('VK Bridge found, initializing...');
-                window.vkBridge.send('VKWebAppInit')
+                
+                // Специальная инициализация для Android WebView
+                const initParams = {};
+                if (isAndroidWebView() || isVKAndroidApp()) {
+                    console.log('Android WebView detected');
+                    initParams.webview = true;
+                }
+                
+                window.vkBridge.send('VKWebAppInit', initParams)
                     .then(function() {
                         console.log('VK Bridge initialized successfully');
-                        // Сигнализируем о готовности приложения
-                        return window.vkBridge.send('VKWebAppViewRestore');
+                        
+                        // Для Android WebView используем другой сигнал готовности
+                        if (isAndroidWebView() || isVKAndroidApp()) {
+                            return window.vkBridge.send('VKWebAppViewRestore', {
+                                type: 'webview'
+                            });
+                        } else {
+                            return window.vkBridge.send('VKWebAppViewRestore');
+                        }
                     })
                     .then(function() {
                         console.log('VK App view restored');
+                        
+                        // Дополнительные настройки для Android
+                        if (isAndroidWebView() || isVKAndroidApp()) {
+                            return window.vkBridge.send('VKWebAppSetViewSettings', {
+                                status_bar_style: 'light',
+                                action_bar_color: '#5181b8',
+                                navigation_bar_color: '#5181b8'
+                            });
+                        }
+                    })
+                    .then(function() {
+                        console.log('Android settings applied');
                     })
                     .catch(function(error) {
                         console.log('VK Bridge init error:', error);
+                        // Повторная попытка через 1 секунду
+                        setTimeout(initVKBridge, 1000);
                     });
             } else {
                 console.log('VK Bridge not found, retrying...');
@@ -45,10 +91,26 @@
         }
         
         // Инициализируем сразу или ждем загрузки
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initVKBridge);
-        } else {
-            initVKBridge();
+        function startInit() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(initVKBridge, 100);
+                });
+            } else {
+                setTimeout(initVKBridge, 100);
+            }
+        }
+        
+        startInit();
+        
+        // Дополнительная попытка через 2 секунды для Android
+        if (isAndroidWebView() || isVKAndroidApp()) {
+            setTimeout(function() {
+                if (!window.vkBridgeInitialized) {
+                    console.log('Retry VK Bridge init for Android');
+                    initVKBridge();
+                }
+            }, 2000);
         }
     </script>
 
