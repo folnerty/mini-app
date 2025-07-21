@@ -33,15 +33,15 @@ const HomePage: React.FC<HomePageProps> = ({
             // Обновляем рейтинг только для VK пользователей
             if (isVKEnvironment()) {
                 try {
-                    const freshLeaderboard = await loadSharedLeaderboard();
-                    console.log('Fresh leaderboard loaded for VK user:', freshLeaderboard.length, 'entries');
+                    const freshGlobalLeaderboard = await loadSharedLeaderboard();
+                    console.log('Fresh GLOBAL leaderboard loaded for VK user:', freshGlobalLeaderboard.length, 'entries');
                 } catch (error) {
-                    console.error('Error refreshing VK leaderboard:', error);
+                    console.error('Error refreshing GLOBAL leaderboard:', error);
                 }
             }
         };
         
-        // Обновляем рейтинг каждые 30 секунд только для VK пользователей
+        // Обновляем ГЛОБАЛЬНЫЙ рейтинг каждые 30 секунд только для VK пользователей
         let interval: NodeJS.Timeout | null = null;
         if (isVKEnvironment()) {
             interval = setInterval(updateLeaderboard, 30000);

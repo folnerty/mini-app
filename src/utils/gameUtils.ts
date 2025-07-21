@@ -42,7 +42,62 @@ export const getCategoryColor = (category: string): string => {
     }
 };
 
-export const loadUserStats = (): UserStats => {
+// Константы для VK Storage
+const VK_STORAGE_KEYS = {
+    GLOBAL_LEADERBOARD: 'quiz_global_leaderboard_v3',
+    USER_STATS_PREFIX: 'quiz_user_stats_',
+    LEADERBOARD_VERSION: 'quiz_leaderboard_version'
+};
+
+// Функция для загрузки статистики пользователя
+export const loadUserStats = async (vkUser?: VKUser): Promise<UserStats> => {
+    const defaultStats: UserStats = {
+        totalQuestions: 0,
+        correctAnswers: 0,
+        totalPoints: 0,
+        averageScore: 0,
+        categoriesStats: {},
+        achievements: [],
+        lastPlayed: '',
+        answeredQuestions: [],
+        questionHistory: []
+    };
+
+    try {
+        const { isVKEnvironment } = await import('./vkUtils');
+        
+        if (isVKEnvironment() && vkUser) {
+            console.log('Loading user stats from VK Storage for user:', vkUser.id);
+            
+            const userStatsKey = VK_STORAGE_KEYS.USER_STATS_PREFIX + vkUser.id;
+            const result = await vkBridge.send('VKWebAppStorageGet', {
+                keys: [userStatsKey]
+            });
+            
+            if (result.keys && result.keys.length > 0 && result.keys[0].value) {
+                const stats = JSON.parse(result.keys[0].value);
+                console.log('User stats loaded from VK Storage:', stats);
+                return stats;
+            } else {
+                console.log('No user stats found in VK Storage, using defaults');
+                return defaultStats;
+            }
+        } else {
+            console.log('Not in VK environment, using localStorage');
+            const saved = localStorage.getItem('userStats');
+            return saved ? JSON.parse(saved) : defaultStats;
+        }
+    } catch (error) {
+        console.error('Error loading user stats:', error);
+        
+        // Fallback к localStorage для не-VK пользователей
+        const saved = localStorage.getItem('userStats');
+        return saved ? JSON.parse(saved) : defaultStats;
+    }
+};
+
+// Синхронная версия для обратной совместимости
+export const loadUserStatsSync = (): UserStats => {
     const saved = localStorage.getItem('userStats');
     if (saved) {
         return JSON.parse(saved);
@@ -61,20 +116,44 @@ export const loadUserStats = (): UserStats => {
     };
 };
 
-export const saveUserStats = (stats: UserStats): void => {
-    localStorage.setItem('userStats', JSON.stringify(stats));
+// Функция для сохранения статистики пользователя
+export const saveUserStats = async (stats: UserStats, vkUser?: VKUser): Promise<void> => {
+    try {
+        const { isVKEnvironment } = await import('./vkUtils');
+        
+        if (isVKEnvironment() && vkUser) {
+            console.log('Saving user stats to VK Storage for user:', vkUser.id);
+            
+            const userStatsKey = VK_STORAGE_KEYS.USER_STATS_PREFIX + vkUser.id;
+            await vkBridge.send('VKWebAppStorageSet', {
+                key: userStatsKey,
+                value: JSON.stringify(stats)
+            });
+            
+            console.log('User stats saved to VK Storage');
+        } else {
+            console.log('Not in VK environment, saving to localStorage');
+            localStorage.setItem('userStats', JSON.stringify(stats));
+        }
+    } catch (error) {
+        console.error('Error saving user stats:', error);
+        
+        // Fallback к localStorage
+        localStorage.setItem('userStats', JSON.stringify(stats));
+    }
 };
 
-export const updateUserStats = (
+export const updateUserStats = async (
     correctAnswers: number,
     totalQuestions: number,
     score: number,
     categories: string[],
     gameQuestions: Question[],
     userAnswers: number[],
-    timesSpent: number[]
-): UserStats => {
-    const stats = loadUserStats();
+    timesSpent: number[],
+    vkUser?: VKUser
+): Promise<UserStats> => {
+    const stats = await loadUserStats(vkUser);
 
     if (shouldResetQuestionHistory(stats.answeredQuestions)) {
         stats.answeredQuestions = [];
@@ -124,15 +203,8 @@ export const updateUserStats = (
     const newAchievements = checkAchievements(stats);
     stats.achievements = [...new Set([...stats.achievements, ...newAchievements])];
 
-    saveUserStats(stats);
+    await saveUserStats(stats, vkUser);
     return stats;
-};
-
-// Константы для VK Storage
-const VK_STORAGE_KEYS = {
-    GLOBAL_LEADERBOARD: 'quiz_global_leaderboard_v2',
-    USER_PREFIX: 'quiz_user_',
-    LEADERBOARD_HASH: 'quiz_leaderboard_hash'
 };
 
 export const checkAchievements = (stats: UserStats): string[] => {
@@ -157,50 +229,45 @@ export const checkAchievements = (stats: UserStats): string[] => {
     return achievements;
 };
 
-// Функция для загрузки общего рейтинга из VK Storage
+// Функция для загрузки ГЛОБАЛЬНОГО рейтинга (один для всех пользователей)
 export const loadSharedLeaderboard = async (): Promise<LeaderboardEntry[]> => {
     try {
         const { isVKEnvironment } = await import('./vkUtils');
         
         if (isVKEnvironment()) {
-            console.log('Loading leaderboard from VK Storage...');
+            console.log('Loading GLOBAL leaderboard from VK Storage...');
             
-            // Только VK Storage для VK пользователей
             const result = await vkBridge.send('VKWebAppStorageGet', {
                 keys: [VK_STORAGE_KEYS.GLOBAL_LEADERBOARD]
             });
             
             if (result.keys && result.keys.length > 0 && result.keys[0].value) {
                 const leaderboard = JSON.parse(result.keys[0].value);
-                console.log('Loaded leaderboard from VK Storage:', leaderboard.length, 'entries');
+                console.log('GLOBAL leaderboard loaded from VK Storage:', leaderboard.length, 'entries');
+                
+                // Кешируем для не-VK пользователей
+                localStorage.setItem('cached_global_leaderboard', JSON.stringify(leaderboard));
+                
                 return leaderboard;
             } else {
-                console.log('No leaderboard found in VK Storage, initializing empty');
+                console.log('No GLOBAL leaderboard found in VK Storage, initializing empty');
                 return [];
             }
         } else {
-            console.log('Not in VK environment, using localStorage');
-            // Для не-VK пользователей используем localStorage
-            const cached = localStorage.getItem('local_leaderboard');
+            console.log('Not in VK environment, using cached global leaderboard');
+            const cached = localStorage.getItem('cached_global_leaderboard');
             return cached ? JSON.parse(cached) : [];
         }
     } catch (error) {
-        console.error('Error loading leaderboard from VK Storage:', error);
+        console.error('Error loading GLOBAL leaderboard:', error);
         
-        // Fallback в зависимости от окружения
-        const { isVKEnvironment } = await import('./vkUtils');
-        if (isVKEnvironment()) {
-            // Для VK пользователей возвращаем пустой массив при ошибке
-            return [];
-        } else {
-            // Для не-VK пользователей используем localStorage
-            const cached = localStorage.getItem('local_leaderboard');
-            return cached ? JSON.parse(cached) : [];
-        }
+        // Fallback к кешированным данным
+        const cached = localStorage.getItem('cached_global_leaderboard');
+        return cached ? JSON.parse(cached) : [];
     }
 };
 
-// Функция для обновления общего рейтинга в VK Storage
+// Функция для обновления ГЛОБАЛЬНОГО рейтинга (один для всех пользователей)
 export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser): Promise<void> => {
     try {
         const userId = vkUser ? `vk_${vkUser.id}` : `guest_${Date.now()}`;
@@ -219,9 +286,9 @@ export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser)
         const { isVKEnvironment } = await import('./vkUtils');
         
         if (isVKEnvironment()) {
-            console.log('Updating leaderboard in VK Storage...');
+            console.log('Updating GLOBAL leaderboard in VK Storage...');
             
-            // Загружаем текущий рейтинг только из VK Storage
+            // Загружаем текущий ГЛОБАЛЬНЫЙ рейтинг
             let currentLeaderboard: LeaderboardEntry[] = [];
             
             try {
@@ -233,81 +300,59 @@ export const updateSharedLeaderboard = async (stats: UserStats, vkUser?: VKUser)
                     currentLeaderboard = JSON.parse(result.keys[0].value);
                 }
             } catch (loadError) {
-                console.log('Could not load existing leaderboard, starting fresh');
+                console.log('Could not load existing GLOBAL leaderboard, starting fresh');
             }
             
-            // Обновляем или добавляем запись пользователя
+            // Обновляем или добавляем запись пользователя в ГЛОБАЛЬНЫЙ рейтинг
             const existingIndex = currentLeaderboard.findIndex(entry => entry.id === userId);
             if (existingIndex >= 0) {
                 currentLeaderboard[existingIndex] = userEntry;
+                console.log('Updated existing user in GLOBAL leaderboard:', userId);
             } else {
                 currentLeaderboard.push(userEntry);
+                console.log('Added new user to GLOBAL leaderboard:', userId);
             }
             
             // Сортируем по очкам и ограничиваем размер до 100 записей
             currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
             const limitedLeaderboard = currentLeaderboard.slice(0, 100);
             
-            // Сохраняем только в VK Storage
+            // Сохраняем ГЛОБАЛЬНЫЙ рейтинг в VK Storage
             await vkBridge.send('VKWebAppStorageSet', {
                 key: VK_STORAGE_KEYS.GLOBAL_LEADERBOARD,
                 value: JSON.stringify(limitedLeaderboard)
             });
             
-            console.log('Leaderboard updated in VK Storage:', limitedLeaderboard.length, 'entries');
+            // Кешируем для не-VK пользователей
+            localStorage.setItem('cached_global_leaderboard', JSON.stringify(limitedLeaderboard));
+            
+            console.log('GLOBAL leaderboard updated in VK Storage:', limitedLeaderboard.length, 'entries');
         } else {
-            console.log('Not in VK environment, updating localStorage only');
-            
-            // В не-VK окружении используем отдельный localStorage
-            const cached = localStorage.getItem('local_leaderboard');
-            let currentLeaderboard: LeaderboardEntry[] = cached ? JSON.parse(cached) : [];
-            
-            const existingIndex = currentLeaderboard.findIndex(entry => entry.id === userId);
-            if (existingIndex >= 0) {
-                currentLeaderboard[existingIndex] = userEntry;
-            } else {
-                currentLeaderboard.push(userEntry);
-            }
-            
-            currentLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
-            const limitedLeaderboard = currentLeaderboard.slice(0, 100);
-            
-            localStorage.setItem('local_leaderboard', JSON.stringify(limitedLeaderboard));
+            console.log('Not in VK environment, cannot update global leaderboard');
+            // Не-VK пользователи не могут обновлять глобальный рейтинг
         }
         
     } catch (error) {
-        console.error('Error updating leaderboard:', error);
-        // При ошибке не делаем fallback для VK пользователей
+        console.error('Error updating GLOBAL leaderboard:', error);
         throw error;
-    }
-};
-
-// Синхронная функция для быстрого доступа к локальному рейтингу (только для не-VK)
-export const getCachedLeaderboard = (): LeaderboardEntry[] => {
-    try {
-        const cached = localStorage.getItem('local_leaderboard');
-        return cached ? JSON.parse(cached) : [];
-    } catch (error) {
-        console.error('Error loading cached leaderboard:', error);
-        return [];
     }
 };
 
 // Функция для принудительного обновления рейтинга после игры
 export const forceUpdateLeaderboardAfterGame = async (stats: UserStats, vkUser?: VKUser): Promise<LeaderboardEntry[]> => {
     try {
-        console.log('Force updating leaderboard after game...');
+        console.log('Force updating GLOBAL leaderboard after game...');
         
-        // Обновляем рейтинг
+        // Обновляем ГЛОБАЛЬНЫЙ рейтинг
         await updateSharedLeaderboard(stats, vkUser);
         
-        // Загружаем обновленный рейтинг
+        // Загружаем обновленный ГЛОБАЛЬНЫЙ рейтинг
         const updatedLeaderboard = await loadSharedLeaderboard();
-        console.log('Leaderboard force updated after game:', updatedLeaderboard.length, 'entries');
+        console.log('GLOBAL leaderboard force updated after game:', updatedLeaderboard.length, 'entries');
         
         return updatedLeaderboard;
     } catch (error) {
-        console.error('Error force updating leaderboard after game:', error);
+        console.error('Error force updating GLOBAL leaderboard after game:', error);
         
         // В случае ошибки возвращаем текущий рейтинг
         const currentLeaderboard = await loadSharedLeaderboard();
@@ -315,14 +360,25 @@ export const forceUpdateLeaderboardAfterGame = async (stats: UserStats, vkUser?:
     }
 };
 
+// Синхронная функция для быстрого доступа к кешированному рейтингу
+export const getCachedLeaderboard = (): LeaderboardEntry[] => {
+    try {
+        const cached = localStorage.getItem('cached_global_leaderboard');
+        return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+        console.error('Error loading cached leaderboard:', error);
+        return [];
+    }
+};
+
 export const getCurrentUserRank = (leaderboard: LeaderboardEntry[], vkUser: VKUser | null): number => {
     if (!vkUser) return 0;
-    const userId = generateUserKey(vkUser.id);
+    const userId = `vk_${vkUser.id}`;
     const rank = leaderboard.findIndex(entry => entry.id === userId) + 1;
     return rank > 0 ? rank : 0;
 };
 
 export const isCurrentUser = (entry: LeaderboardEntry, vkUser: VKUser | null): boolean => {
-    if (!vkUser) return entry.id.startsWith('anonymous_');
-    return entry.id === generateUserKey(vkUser.id);
+    if (!vkUser) return entry.id.startsWith('guest_');
+    return entry.id === `vk_${vkUser.id}`;
 };

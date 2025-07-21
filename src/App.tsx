@@ -5,7 +5,7 @@ import QuizResults from './components/QuizResults';
 import UserStats from './components/UserStats';
 import Leaderboard from './components/Leaderboard';
 import { UserStats as UserStatsType, Question } from './types/quiz';
-import { loadUserStats, updateUserStats, loadSharedLeaderboard, forceUpdateLeaderboardAfterGame, getCachedLeaderboard } from './utils/gameUtils';
+import { loadUserStats, updateUserStats, loadSharedLeaderboard, forceUpdateLeaderboardAfterGame, getCachedLeaderboard, loadUserStatsSync } from './utils/gameUtils';
 import { VKUser, initVK, getVKUserWithFallback, isVKEnvironment } from './utils/vkUtils';
 import vkBridge from '@vkontakte/vk-bridge';
 import { LeaderboardEntry } from './types/quiz';
@@ -14,7 +14,7 @@ type AppState = 'home' | 'quiz' | 'results' | 'stats' | 'leaderboard';
 
 function App() {
     const [currentState, setCurrentState] = useState<AppState>('home');
-    const [userStats, setUserStats] = useState<UserStatsType>(loadUserStats());
+    const [userStats, setUserStats] = useState<UserStatsType>(loadUserStatsSync());
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [vkUser, setVkUser] = useState<VKUser | null>(null);
     const [isVkInitialized, setIsVkInitialized] = useState(false);
@@ -43,14 +43,15 @@ function App() {
 
                 console.log('VK User loaded:', user);
 
-                const userStats = loadUserStats();
+                // Загружаем статистику пользователя из VK Storage или localStorage
+                const userStats = await loadUserStats(user);
                 setUserStats(userStats);
 
                 // Загружаем рейтинг
-                console.log('Loading initial leaderboard...');
+                console.log('Loading initial GLOBAL leaderboard...');
                 const updatedLeaderboard = await loadSharedLeaderboard();
                 setLeaderboard(updatedLeaderboard);
-                console.log('Initial leaderboard loaded:', updatedLeaderboard.length, 'entries');
+                console.log('Initial GLOBAL leaderboard loaded:', updatedLeaderboard.length, 'entries');
 
                 setIsVkInitialized(true);
             } catch (error) {
@@ -60,7 +61,7 @@ function App() {
                 const defaultUser = await getVKUserWithFallback();
                 setVkUser(defaultUser);
 
-                const userStats = loadUserStats();
+                const userStats = await loadUserStats(defaultUser);
                 setUserStats(userStats);
                 
                 // Загружаем рейтинг даже при ошибке инициализации
@@ -114,17 +115,17 @@ function App() {
         });
 
         const categories = gameQuestions.map(q => q.category);
-        const newStats = updateUserStats(correctAnswers, totalQuestions, score, categories, gameQuestions, answers, timesSpent);
+        const newStats = await updateUserStats(correctAnswers, totalQuestions, score, categories, gameQuestions, answers, timesSpent, vkUser || undefined);
         setUserStats(newStats);
 
         // Принудительно обновляем рейтинг после каждой игры
-        console.log('Updating leaderboard after game completion...');
+        console.log('Updating GLOBAL leaderboard after game completion...');
         try {
             const updatedLeaderboard = await forceUpdateLeaderboardAfterGame(newStats, vkUser || undefined);
             setLeaderboard(updatedLeaderboard);
-            console.log('Leaderboard successfully updated after game');
+            console.log('GLOBAL leaderboard successfully updated after game');
         } catch (error) {
-            console.error('Error updating leaderboard after game:', error);
+            console.error('Error updating GLOBAL leaderboard after game:', error);
             
             // В случае ошибки пытаемся загрузить текущий рейтинг
             try {
