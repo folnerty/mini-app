@@ -8,7 +8,6 @@ import { UserStats as UserStatsType, Question } from './types/quiz';
 import { loadUserStats, updateUserStats, loadLeaderboard, updateLeaderboard } from './utils/gameUtils';
 import { VKUser, initVK, getVKUserWithFallback, isVKEnvironment } from './utils/vkUtils';
 import vkBridge from '@vkontakte/vk-bridge';
-import { VKBridgeEvent } from '@vkontakte/vk-bridge';
 type AppState = 'home' | 'quiz' | 'results' | 'stats' | 'leaderboard';
 
 
@@ -33,12 +32,9 @@ function App() {
             try {
                 console.log('Initializing VK Bridge...');
 
-                if (isVKEnvironment()) {
-                    await initVK();
-                    console.log('VK Bridge initialized successfully');
-                } else {
-                    console.log('Not in VK environment, skipping VK Bridge initialization');
-                }
+                // Всегда пытаемся инициализировать VK Bridge
+                await initVK();
+                console.log('VK Bridge initialized successfully');
 
                 console.log('Getting VK user info...');
                 const user = await getVKUserWithFallback();
@@ -56,8 +52,8 @@ function App() {
             } catch (error) {
                 console.error('VK initialization failed:', error);
 
+                // В случае ошибки все равно пытаемся получить пользователя
                 const defaultUser = await getVKUserWithFallback();
-
                 setVkUser(defaultUser);
 
                 const userStats = loadUserStats();
@@ -70,6 +66,23 @@ function App() {
         };
 
         initializeVK();
+        
+        // Обработчик событий VK Bridge
+        const handleVKEvent = (event: any) => {
+            console.log('VK Bridge event:', event);
+            
+            if (event.detail?.type === 'VKWebAppUpdateConfig') {
+                // Обновление конфигурации приложения
+                console.log('App config updated:', event.detail.data);
+            }
+        };
+        
+        // Подписываемся на события VK Bridge
+        vkBridge.subscribe(handleVKEvent);
+        
+        return () => {
+            vkBridge.unsubscribe(handleVKEvent);
+        };
     }, []);
 
     const handleStartQuiz = () => {

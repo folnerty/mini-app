@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="Научный квиз - проверьте свои знания в области физики, химии, биологии и астрономии!" />
     <meta name="keywords" content="квиз, наука, физика, химия, биология, астрономия, игра, знания" />
     <meta name="theme-color" content="#3B82F6" />
@@ -11,14 +11,91 @@
     <meta property="vk:app_id" content="51825863" />
     <meta property="vk:platform" content="web" />
     <meta property="vk:iframe" content="1" />
+    <meta property="vk:api_version" content="5.131" />
 
-    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" crossorigin="anonymous"></script>
+    <!-- VK Bridge должен загружаться первым -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    
+    <!-- Инициализация VK Bridge сразу после загрузки -->
+    <script>
+        if (window.vkBridge) {
+            window.vkBridge.send('VKWebAppInit');
+        }
+    </script>
 
     <title>Научный Квиз</title>
+    
+    <style>
+        /* Предотвращаем мерцание при загрузке */
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+        
+        /* Loader для начальной загрузки */
+        .initial-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loader-content {
+            text-align: center;
+            color: #374151;
+        }
+        
+        .loader-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
+    <div id="initial-loader" class="initial-loader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <div>Загрузка...</div>
+        </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <script>
+        // Убираем loader после загрузки React приложения
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const loader = document.getElementById('initial-loader');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    loader.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => loader.remove(), 300);
+                }
+            }, 500);
+        });
+    </script>
 </body>
 </html>
 </parameter>

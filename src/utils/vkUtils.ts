@@ -10,14 +10,26 @@ export interface VKUser {
 
 export const initVK = async (): Promise<void> => {
     try {
-        if (typeof bridge !== 'undefined' && bridge.send) {
-            await bridge.send('VKWebAppInit');
-            console.log('VK Bridge initialized successfully');
-        } else {
-            console.warn('VK Bridge not available');
+        // Инициализация VK Bridge
+        await bridge.send('VKWebAppInit');
+        
+        // Отправляем сигнал о готовности приложения
+        await bridge.send('VKWebAppViewRestore');
+        
+        // Устанавливаем цвет статус-бара
+        try {
+            await bridge.send('VKWebAppSetViewSettings', {
+                status_bar_style: 'light',
+                action_bar_color: '#3B82F6'
+            });
+        } catch (e) {
+            console.log('VKWebAppSetViewSettings not supported');
         }
+        
+            console.log('VK Bridge initialized successfully');
     } catch (error) {
-        console.warn('Failed to initialize VK Bridge (this is normal outside VK):', error);
+        console.error('Failed to initialize VK Bridge:', error);
+        throw error;
     }
 };
 
@@ -57,10 +69,29 @@ export const getVKUser = async (): Promise<VKUser | null> => {
 };
 
 export const isVKEnvironment = (): boolean => {
-    return typeof window !== 'undefined' &&
-        (window.location.hostname.includes('vk.com') ||
-            window.location.hostname.includes('vk-apps.com') ||
-            window.location.hostname.includes('vk.me'));
+    if (typeof window === 'undefined') return false;
+    
+    // Проверяем различные способы определения VK окружения
+    const hostname = window.location.hostname;
+    const isVKDomain = hostname.includes('vk.com') || 
+                      hostname.includes('vk-apps.com') || 
+                      hostname.includes('vk.me') ||
+                      hostname.includes('userapi.com');
+    
+    // Проверяем наличие VK Bridge
+    const hasVKBridge = typeof window.vkBridge !== 'undefined';
+    
+    // Проверяем параметры URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasVKParams = urlParams.has('vk_app_id') || 
+                       urlParams.has('vk_user_id') ||
+                       urlParams.has('sign');
+    
+    // Проверяем user agent
+    const userAgent = navigator.userAgent || '';
+    const isVKApp = userAgent.includes('VKApp') || userAgent.includes('VK/');
+    
+    return isVKDomain || hasVKBridge || hasVKParams || isVKApp;
 };
 
 export const isLocalhostEnvironment = (): boolean => {
